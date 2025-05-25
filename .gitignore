@@ -1,0 +1,262 @@
+# ===================================
+# ROOT LEVEL GITIGNORE
+# ===================================
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+!env.template
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+*.temp
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ===================================
+# FRONTEND (Next.js/React)
+# ===================================
+
+# Dependencies
+fe/node_modules/
+fe/.pnp
+fe/.pnp.*
+fe/.yarn/*
+!fe/.yarn/patches
+!fe/.yarn/plugins
+!fe/.yarn/releases
+!fe/.yarn/versions
+
+# Production builds
+fe/.next/
+fe/out/
+fe/build/
+fe/dist/
+
+# Testing
+fe/coverage/
+
+# Debug logs
+fe/npm-debug.log*
+fe/yarn-debug.log*
+fe/yarn-error.log*
+fe/.pnpm-debug.log*
+
+# Vercel
+fe/.vercel
+
+# TypeScript
+fe/*.tsbuildinfo
+fe/next-env.d.ts
+
+# ===================================
+# BACKEND (Python/FastAPI)
+# ===================================
+
+# Python
+be/__pycache__/
+be/*.py[cod]
+be/*$py.class
+be/*.so
+be/.Python
+be/build/
+be/develop-eggs/
+be/dist/
+be/downloads/
+be/eggs/
+be/.eggs/
+be/lib/
+be/lib64/
+be/parts/
+be/sdist/
+be/var/
+be/wheels/
+be/share/python-wheels/
+be/*.egg-info/
+be/.installed.cfg
+be/*.egg
+be/MANIFEST
+
+# PyInstaller
+be/*.manifest
+be/*.spec
+
+# Unit test / coverage reports
+be/htmlcov/
+be/.tox/
+be/.nox/
+be/.coverage
+be/.coverage.*
+be/.cache
+be/nosetests.xml
+be/coverage.xml
+be/*.cover
+be/*.py,cover
+be/.hypothesis/
+be/.pytest_cache/
+be/cover/
+
+# Virtual environments
+be/venv/
+be/env/
+be/ENV/
+be/env.bak/
+be/venv.bak/
+be/.venv/
+
+# Jupyter Notebook
+be/.ipynb_checkpoints
+
+# IPython
+be/profile_default/
+be/ipython_config.py
+
+# pyenv
+be/.python-version
+
+# pipenv
+be/Pipfile.lock
+
+# poetry
+be/poetry.lock
+
+# Celery
+be/celerybeat-schedule
+be/celerybeat.pid
+
+# Database
+be/*.db
+be/*.sqlite3
+be/*.sqlite
+be/instance/
+
+# Alembic
+be/alembic/versions/*.py
+!be/alembic/versions/__init__.py
+
+# ===================================
+# DEPLOYMENT
+# ===================================
+
+# Railway
+railway.toml
+.railway/
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.yaml
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# ===================================
+# DEVELOPMENT & TESTING
+# ===================================
+
+# Test files (keeping structure but ignoring outputs)
+be/test_*.py
+be/*_test.py
+be/tests/
+be/pytest.ini
+be/.pytest_cache/
+
+# Development scripts
+be/quick_test.py
+be/check_*.py
+be/create_test_user.py
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# ===================================
+# SECURITY & SECRETS
+# ===================================
+
+# API Keys and secrets
+**/secrets/
+**/*secret*
+**/*key*
+!**/public_key*
+**/*token*
+**/*password*
+
+# SSL Certificates
+*.pem
+*.key
+*.crt
+*.cert
+
+# ===================================
+# MISC
+# ===================================
+
+# Compressed files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity 

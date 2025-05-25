@@ -9,7 +9,7 @@ export default function Home() {
   // Don't render navigation buttons while checking auth
   const renderNavigation = () => {
     if (isLoading) {
-      return (
+  return (
         <div className="animate-pulse">
           <div className="h-12 bg-gray-200 rounded-xl w-32"></div>
         </div>

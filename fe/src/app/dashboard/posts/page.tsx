@@ -4,28 +4,22 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
 import PublishDialog from '../../../components/PublishDialog'
-import { useAuth } from '../../../hooks/useAuth'
 
 interface Post {
   id: number
   title: string
   content_markdown: string
-  is_draft: boolean
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 interface PublishHistory {
   platform_name: string
   status: string
-  platform_post_id?: string
   platform_post_url?: string
-  published_at?: string
-  error_message?: string
 }
 
 export default function PostsPage() {
-  const { isAuthenticated, token, isLoading: authLoading } = useAuth()
   const [posts, setPosts] = useState<Post[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [publishHistories, setPublishHistories] = useState<Record<number, PublishHistory[]>>({})
@@ -38,66 +32,75 @@ export default function PostsPage() {
     postId: 0,
     postTitle: ''
   })
+  const [refreshCount, setRefreshCount] = useState(0)
+  const [lastRefreshTime, setLastRefreshTime] = useState(0)
 
   useEffect(() => {
-    // Only fetch posts when authentication is ready and user is authenticated
-    if (!authLoading && isAuthenticated && token) {
-      console.log('PostsPage: Auth ready, fetching posts')
-      fetchPosts()
-    } else if (!authLoading && !isAuthenticated) {
-      console.log('PostsPage: Not authenticated, stopping loading')
-      setIsLoading(false)
-    }
-  }, [isAuthenticated, token, authLoading])
+    fetchPosts()
+  }, [])
 
   useEffect(() => {
-    // Fetch publish histories for all posts, but only if authenticated
-    if (isAuthenticated && token && posts.length > 0) {
-      posts.forEach(post => fetchPublishHistory(post.id))
-    }
-  }, [posts, isAuthenticated, token])
+    // Fetch publish histories for all posts
+    posts.forEach(post => fetchPublishHistory(post.id))
+    setLastRefreshTime(Date.now())
+  }, [posts])
 
-  // Auto-refresh publish histories every 30 seconds to check for task completion
+  // Smart auto-refresh: only refresh if there are pending/processing tasks and within reasonable limits
   useEffect(() => {
-    if (!isAuthenticated || !token || posts.length === 0) return
-    
     const interval = setInterval(() => {
-      posts.forEach(post => fetchPublishHistory(post.id))
-    }, 30000) // 30 seconds
+      // Check if we have any pending/processing tasks
+      const hasPendingTasks = Object.values(publishHistories).some(histories =>
+        histories.some(history => 
+          history.status === 'pending' || history.status === 'processing'
+        )
+      )
+
+      // Stop auto-refresh after 15 minutes or 15 refresh attempts
+      const timeSinceStart = Date.now() - lastRefreshTime
+      const maxRefreshTime = 15 * 60 * 1000 // 15 minutes
+      const maxRefreshCount = 15 // 15 attempts * 60s = 15 minutes
+
+      if (hasPendingTasks && timeSinceStart < maxRefreshTime && refreshCount < maxRefreshCount) {
+        console.log(`Auto-refreshing publish histories (attempt ${refreshCount + 1}/${maxRefreshCount})`)
+        posts.forEach(post => fetchPublishHistory(post.id))
+        setRefreshCount(prev => prev + 1)
+      } else if (refreshCount >= maxRefreshCount || timeSinceStart >= maxRefreshTime) {
+        console.log('Stopping auto-refresh: reached maximum attempts or time limit')
+        clearInterval(interval)
+      }
+    }, 60000) // 60 seconds (reduced from 30 seconds)
 
     return () => clearInterval(interval)
-  }, [posts, isAuthenticated, token])
+  }, [posts, publishHistories, refreshCount, lastRefreshTime])
 
   const fetchPosts = async () => {
     try {
-      console.log('PostsPage: Making API call with token:', token ? `${token.substring(0, 20)}...` : 'null')
-      
+      const token = localStorage.getItem('authToken')
       if (!token) {
-        console.error('No auth token available')
-        toast.error('Please log in again')
-        setIsLoading(false)
+        console.error('No auth token found')
+        window.location.href = '/login'
         return
       }
-      
+
       const response = await fetch('http://localhost:8000/api/posts/', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       })
       
-      console.log('Posts response status:', response.status)
+      if (response.status === 401) {
+        console.error('Authentication failed - redirecting to login')
+        localStorage.removeItem('authToken')
+        window.location.href = '/login'
+        return
+      }
       
       if (response.ok) {
         const data = await response.json()
         setPosts(data)
-        console.log('PostsPage: Successfully loaded posts:', data.length, 'posts')
       } else {
-        console.error('Failed to fetch posts, status:', response.status)
-        if (response.status === 401) {
-          toast.error('Authentication failed. Please log in again.')
-        } else {
-          toast.error('Failed to fetch posts')
-        }
+        console.error('Failed to fetch posts', response.status, response.statusText)
+        toast.error('Failed to fetch posts')
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
@@ -110,11 +113,23 @@ export default function PostsPage() {
   const fetchPublishHistory = async (postId: number) => {
     try {
       const token = localStorage.getItem('authToken')
+      if (!token) {
+        return // Silent fail for this background operation
+      }
+
       const response = await fetch(`http://localhost:8000/api/posts/${postId}/publish-history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       })
+      
+      if (response.status === 401) {
+        console.error('Authentication failed')
+        localStorage.removeItem('authToken')
+        window.location.href = '/login'
+        return
+      }
+      
       if (response.ok) {
         const data = await response.json()
         setPublishHistories(prev => ({
@@ -167,6 +182,9 @@ export default function PostsPage() {
       postId: 0,
       postTitle: ''
     })
+    // Reset refresh counters for new publish operation
+    setRefreshCount(0)
+    setLastRefreshTime(Date.now())
     // Refresh publish history after publishing
     setTimeout(() => {
       posts.forEach(post => fetchPublishHistory(post.id))

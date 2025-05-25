@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import toast, { Toaster } from 'react-hot-toast'
-import { useAuth } from '../../../hooks/useAuth'
 
 interface Connection {
   platform_name: string
@@ -18,7 +17,6 @@ interface ApiKeyForm {
 }
 
 export default function ConnectionsPage() {
-  const { isAuthenticated, token, isLoading: authLoading } = useAuth()
   const [connections, setConnections] = useState<Connection[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [apiKeyForms, setApiKeyForms] = useState<Record<string, ApiKeyForm>>({
@@ -27,46 +25,37 @@ export default function ConnectionsPage() {
   })
 
   useEffect(() => {
-    // Only fetch connections when authentication is ready and user is authenticated
-    if (!authLoading && isAuthenticated && token) {
-      console.log('ConnectionsPage: Auth ready, fetching connections')
-      fetchConnections()
-    } else if (!authLoading && !isAuthenticated) {
-      console.log('ConnectionsPage: Not authenticated, stopping loading')
-      setIsLoading(false)
-    }
-  }, [isAuthenticated, token, authLoading])
+    fetchConnections()
+  }, [])
 
   const fetchConnections = async () => {
     try {
-      console.log('ConnectionsPage: Making API call with token:', token ? `${token.substring(0, 20)}...` : 'null')
-      
+      const token = localStorage.getItem('authToken')
       if (!token) {
-        console.error('No auth token available')
-        toast.error('Please log in again')
-        setIsLoading(false)
+        console.error('No auth token found')
+        window.location.href = '/login'
         return
       }
-      
+
       const response = await fetch('http://localhost:8000/api/connections/', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       })
       
-      console.log('Connections response status:', response.status)
+      if (response.status === 401) {
+        console.error('Authentication failed - redirecting to login')
+        localStorage.removeItem('authToken')
+        window.location.href = '/login'
+        return
+      }
       
       if (response.ok) {
         const data = await response.json()
         setConnections(data)
-        console.log('ConnectionsPage: Successfully loaded connections:', data)
       } else {
-        console.error('Failed to fetch connections, status:', response.status)
-        if (response.status === 401) {
-          toast.error('Authentication failed. Please log in again.')
-        } else {
-          toast.error('Failed to load connections')
-        }
+        console.error('Failed to fetch connections', response.status, response.statusText)
+        toast.error('Failed to load connections')
       }
     } catch (error) {
       console.error('Error fetching connections:', error)
@@ -121,6 +110,12 @@ export default function ConnectionsPage() {
 
     try {
       const token = localStorage.getItem('authToken')
+      if (!token) {
+        console.error('No auth token found')
+        window.location.href = '/login'
+        return
+      }
+
       const response = await fetch('http://localhost:8000/api/connections/save_key', {
         method: 'POST',
         headers: {
@@ -133,6 +128,13 @@ export default function ConnectionsPage() {
         }),
       })
 
+      if (response.status === 401) {
+        console.error('Authentication failed - redirecting to login')
+        localStorage.removeItem('authToken')
+        window.location.href = '/login'
+        return
+      }
+
       if (response.ok) {
         // Clear the input and refresh connections
         setApiKeyForms(prev => ({
@@ -142,6 +144,7 @@ export default function ConnectionsPage() {
         toast.success(`${platform} API key saved successfully`)
         await fetchConnections()
       } else {
+        console.error(`Failed to save ${platform} API key:`, response.status, response.statusText)
         toast.error(`Failed to save ${platform} API key`)
       }
     } catch (error) {
@@ -211,9 +214,9 @@ export default function ConnectionsPage() {
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center">
             <span className="text-3xl mr-4">{getPlatformIcon(platform)}</span>
-            <div>
+          <div>
               <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-              <p className="text-sm text-gray-600 mt-1">{description}</p>
+            <p className="text-sm text-gray-600 mt-1">{description}</p>
               {isConnected && connectionDetails?.connected_at && (
                 <p className="text-xs text-gray-500 mt-2">
                   Connected on {formatDate(connectionDetails.connected_at)}
@@ -223,10 +226,10 @@ export default function ConnectionsPage() {
           </div>
           <div className="flex flex-col items-end space-y-2">
             <div className={`px-4 py-2 rounded-full text-sm font-medium ${
-              isConnected 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-gray-100 text-gray-800'
-            }`}>
+            isConnected 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-gray-100 text-gray-800'
+          }`}>
               {isConnected ? '✅ Connected' : '❌ Not Connected'}
             </div>
             {isConnected && (
@@ -313,15 +316,15 @@ export default function ConnectionsPage() {
           description="Connect via OAuth to automatically publish posts to Medium"
         >
           {!getConnectionStatus('medium') ? (
-            <button
-              onClick={handleConnectMedium}
+          <button
+            onClick={handleConnectMedium}
               className="inline-flex items-center px-6 py-3 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 transition-colors"
-            >
+          >
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75S24 8.83 24 12z"/>
-              </svg>
-              Connect to Medium
-            </button>
+              <path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75S24 8.83 24 12z"/>
+            </svg>
+            Connect to Medium
+          </button>
           ) : (
             <div className="text-sm text-gray-600">
               ✅ Medium is connected and ready to receive your posts
@@ -337,24 +340,24 @@ export default function ConnectionsPage() {
         >
           {!getConnectionStatus('dev.to') ? (
             <div className="space-y-4">
-              <div>
+            <div>
                 <label htmlFor="devto-api-key" className="block text-sm font-medium text-gray-700 mb-2">
-                  API Key
-                </label>
+                API Key
+              </label>
                 <div className="relative">
-                  <input
-                    type="password"
-                    id="devto-api-key"
-                    value={apiKeyForms['dev.to'].apiKey}
-                    onChange={(e) => handleApiKeyChange('dev.to', e.target.value)}
+              <input
+                type="password"
+                id="devto-api-key"
+                value={apiKeyForms['dev.to'].apiKey}
+                onChange={(e) => handleApiKeyChange('dev.to', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10"
-                    placeholder="Enter your Dev.to API key..."
-                  />
+                placeholder="Enter your Dev.to API key..."
+              />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                     <span className="text-gray-400">🔐</span>
                   </div>
                 </div>
-              </div>
+            </div>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-gray-500">
                   Get your API key from <a 
@@ -366,11 +369,11 @@ export default function ConnectionsPage() {
                     Dev.to Settings → Extensions
                   </a>
                 </p>
-                <button
-                  onClick={() => handleSaveApiKey('dev.to')}
-                  disabled={!apiKeyForms['dev.to'].apiKey.trim() || apiKeyForms['dev.to'].isLoading}
+            <button
+              onClick={() => handleSaveApiKey('dev.to')}
+              disabled={!apiKeyForms['dev.to'].apiKey.trim() || apiKeyForms['dev.to'].isLoading}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
+            >
                   {apiKeyForms['dev.to'].isLoading ? (
                     <>
                       <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
@@ -379,13 +382,13 @@ export default function ConnectionsPage() {
                   ) : (
                     'Save API Key'
                   )}
-                </button>
+            </button>
               </div>
             </div>
           ) : (
             <div className="text-sm text-gray-600">
               ✅ Dev.to is connected and ready to receive your posts
-            </div>
+          </div>
           )}
         </ConnectionCard>
 
@@ -397,24 +400,27 @@ export default function ConnectionsPage() {
         >
           {!getConnectionStatus('hashnode') ? (
             <div className="space-y-4">
-              <div>
+            <div>
                 <label htmlFor="hashnode-api-key" className="block text-sm font-medium text-gray-700 mb-2">
-                  Personal Access Token
-                </label>
+                Personal Access Token
+              </label>
                 <div className="relative">
-                  <input
-                    type="password"
-                    id="hashnode-api-key"
-                    value={apiKeyForms['hashnode'].apiKey}
-                    onChange={(e) => handleApiKeyChange('hashnode', e.target.value)}
+              <input
+                type="password"
+                id="hashnode-api-key"
+                value={apiKeyForms['hashnode'].apiKey}
+                onChange={(e) => handleApiKeyChange('hashnode', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10"
                     placeholder="Enter your Hashnode personal access token..."
-                  />
+              />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                     <span className="text-gray-400">🔐</span>
                   </div>
                 </div>
-              </div>
+                <p className="text-xs text-gray-600 mt-1">
+                  💡 Your publication will be automatically detected and configured
+                </p>
+            </div>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-gray-500">
                   Get your token from <a 
@@ -426,26 +432,26 @@ export default function ConnectionsPage() {
                     Hashnode Developer Settings
                   </a>
                 </p>
-                <button
-                  onClick={() => handleSaveApiKey('hashnode')}
-                  disabled={!apiKeyForms['hashnode'].apiKey.trim() || apiKeyForms['hashnode'].isLoading}
+            <button
+              onClick={() => handleSaveApiKey('hashnode')}
+              disabled={!apiKeyForms['hashnode'].apiKey.trim() || apiKeyForms['hashnode'].isLoading}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
+            >
                   {apiKeyForms['hashnode'].isLoading ? (
                     <>
                       <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                      Saving...
+                      Connecting...
                     </>
                   ) : (
-                    'Save Token'
+                    'Connect & Configure'
                   )}
-                </button>
+            </button>
               </div>
             </div>
           ) : (
             <div className="text-sm text-gray-600">
               ✅ Hashnode is connected and ready to receive your posts
-            </div>
+          </div>
           )}
         </ConnectionCard>
       </div>
@@ -462,7 +468,7 @@ export default function ConnectionsPage() {
               <li>• We only access the permissions needed for publishing</li>
               <li>• Your content remains under your full control</li>
             </ul>
-          </div>
+              </div>
         </div>
       </div>
     </div>
