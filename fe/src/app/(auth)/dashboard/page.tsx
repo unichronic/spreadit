@@ -10,12 +10,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login?redirect=/dashboard'); // Redirect to login if not authenticated
+      router.push('/login?redirect=/dashboard'); 
     }
   }, [isAuthenticated, isLoading, router]);
 
   if (isLoading || !isAuthenticated) {
-    // You can show a loading spinner or a message
+    
     return <p className="text-center mt-8">Loading dashboard...</p>;
   }
 

@@ -5,7 +5,7 @@ from database import SessionLocal, engine, Base
 import models
 import os
 
-# Import routers
+
 from routers import auth, posts, connections, tasks
 
 app = FastAPI(
@@ -14,15 +14,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS Middleware - Updated for deployment
+
 origins = [
-    "http://localhost:3000",  # Next.js frontend (local)
+    "http://localhost:3000",  
     "http://127.0.0.1:3000",
-    "https://*.railway.app",  # Railway frontend
-    "https://*.vercel.app",   # If you deploy frontend to Vercel
+    "https://*.railway.app",  
+    "https://*.vercel.app",   
 ]
 
-# Add environment-specific origins
+
 if os.getenv("FRONTEND_URL"):
     origins.append(os.getenv("FRONTEND_URL"))
 
@@ -34,18 +34,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create database tables on startup
+
 @app.on_event("startup")
 async def startup_event():
     try:
-        # Create database tables
+        
         models.Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully")
     except Exception as e:
         print(f"⚠️ Database setup error: {e}")
         print("💡 Continuing with mock data for now...")
 
-# Include routers
+
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(posts.router, prefix="/api/posts", tags=["Posts"])
 app.include_router(connections.router, prefix="/api/connections", tags=["Connections"])
@@ -58,7 +58,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     try:
-        # Test database connection
+        
         db = SessionLocal()
         db.execute("SELECT 1")
         db.close()

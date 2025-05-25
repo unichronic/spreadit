@@ -15,7 +15,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { login: authLogin, isAuthenticated } = useAuth();
 
-  // Redirect if already authenticated
+  
   useEffect(() => {
     if (isAuthenticated) {
       router.push('/dashboard/posts');

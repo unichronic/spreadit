@@ -1,9 +1,9 @@
-# backend/routers/posts.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import httpx
-import schemas, crud, models, security, database  # Fixed imports
+import schemas, crud, models, security, database  
 from services.posting_service import post_to_devto, post_to_hashnode, post_to_medium
 from tasks import publish_to_platform_task
 import asyncio
@@ -19,7 +19,7 @@ def get_canonical_url(post_id: int, platform_name: str = None) -> str:
     base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
     canonical_url = f"{base_url}/blog/{post_id}"
     
-    # Skip canonical URL for Hashnode when using localhost (it rejects localhost URLs)
+    
     if platform_name == "hashnode" and "localhost" in canonical_url:
         return None
     
@@ -72,12 +72,12 @@ def get_publish_history(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(security.get_current_active_user),
 ):
-    # Verify user owns the post
+    
     db_post = crud.get_post(db, post_id=post_id, user_id=current_user.id)
     if db_post is None:
         raise HTTPException(status_code=404, detail="Post not found")
     
-    # Get publishing history
+    
     published_posts = db.query(models.PublishedPost).filter_by(original_post_id=post_id).all()
     
     return {
@@ -108,7 +108,7 @@ def publish_post_to_platforms_celery(
 
     task_ids = {}
     for platform_name in request_data.platforms:
-        # Ensure PublishedPost entry exists or create it with 'pending' status
+        
         published_post_entry = db.query(models.PublishedPost).filter_by(
             original_post_id=db_post.id,
             platform_name=platform_name
@@ -121,28 +121,28 @@ def publish_post_to_platforms_celery(
             )
             db.add(published_post_entry)
             db.commit()
-        else:  # If retrying or re-publishing
+        else:  
             published_post_entry.status = "pending"
             published_post_entry.error_message = None
             db.commit()
 
-        # Special handling for Hashnode publication ID
+        
         hashnode_pub_id = None
         if platform_name == "hashnode":
-            # Fetch from PlatformCredential
+            
             hn_cred = crud.get_platform_credential(db, user_id=current_user.id, platform_name="hashnode")
             if hn_cred:
-                # Try to get from publication_id column first
+                
                 if hasattr(hn_cred, 'publication_id') and hn_cred.publication_id:
                     hashnode_pub_id = hn_cred.publication_id
-                # Fallback to extra_data if available
+                
                 elif hasattr(hn_cred, 'extra_data') and hn_cred.extra_data and "publication_id" in hn_cred.extra_data:
                     hashnode_pub_id = hn_cred.extra_data["publication_id"]
-                # Fallback to request data
+                
                 if not hashnode_pub_id and request_data.hashnode_publication_id:
                     hashnode_pub_id = request_data.hashnode_publication_id
 
-        # Generate appropriate canonical URL for this platform
+        
         canonical_url = get_canonical_url(db_post.id, platform_name)
 
         task = publish_to_platform_task.delay(
@@ -163,28 +163,28 @@ def publish_post(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(security.get_current_active_user),
 ):
-    # Get the post
+    
     db_post = crud.get_post(db, post_id=post_id, user_id=current_user.id)
     if db_post is None:
         raise HTTPException(status_code=404, detail="Post not found")
     
-    # Get user's connections to filter available platforms
+    
     user_connections = crud.get_user_connections(db, user_id=current_user.id)
     connected_platforms = {conn.platform_name: conn for conn in user_connections}
     
-    # Filter requested platforms to only include connected ones
+    
     valid_platforms = [platform for platform in publish_request.platforms if platform in connected_platforms]
     
     if not valid_platforms:
         raise HTTPException(status_code=400, detail="No valid connected platforms selected")
     
-    # Dispatch Celery tasks for each platform
+    
     task_ids = {}
     
     for platform in valid_platforms:
         credential = connected_platforms[platform]
         
-        # Create PublishedPost entry for tracking
+        
         published_post_entry = db.query(models.PublishedPost).filter_by(
             original_post_id=post_id,
             platform_name=platform
@@ -203,15 +203,15 @@ def publish_post(
         
         db.commit()
         
-        # Generate appropriate canonical URL for this platform
+        
         canonical_url = get_canonical_url(post_id, platform)
-        # Use explicit None check to ensure localhost URLs don't get passed to Hashnode
+        
         if publish_request.canonical_url is not None:
             final_canonical_url = publish_request.canonical_url
         else:
-            final_canonical_url = canonical_url  # This will be None for Hashnode+localhost
+            final_canonical_url = canonical_url  
         
-        # Dispatch Celery task
+        
         try:
             hashnode_publication_id = credential.publication_id if platform == "hashnode" else None
             task = publish_to_platform_task.delay(
@@ -223,7 +223,7 @@ def publish_post(
             )
             task_ids[platform] = task.id
         except Exception as e:
-            # If task dispatch fails, update the PublishedPost entry
+            
             published_post_entry.status = "failed"
             published_post_entry.error_message = f"Task dispatch failed: {str(e)[:500]}"
             db.commit()
@@ -251,11 +251,11 @@ def publish_post_direct(
     if not db_post:
         raise HTTPException(status_code=404, detail="Post not found")
     
-    # Get user's connections
+    
     user_connections = crud.get_user_connections(db, user_id=current_user.id)
     connected_platforms = {conn.platform_name: conn for conn in user_connections}
     
-    # Filter requested platforms to only include connected ones
+    
     valid_platforms = [platform for platform in request_data.platforms if platform in connected_platforms]
     
     if not valid_platforms:
@@ -267,7 +267,7 @@ def publish_post_direct(
         try:
             credential = connected_platforms[platform_name]
             
-            # Create or update PublishedPost entry
+            
             published_post_entry = db.query(models.PublishedPost).filter_by(
                 original_post_id=db_post.id,
                 platform_name=platform_name
@@ -286,10 +286,10 @@ def publish_post_direct(
             
             db.commit()
             
-            # Generate appropriate canonical URL for this platform
+            
             canonical_url = get_canonical_url(db_post.id, platform_name)
             
-            # Direct API calls (synchronous)
+            
             if platform_name == "dev.to" and credential.api_key:
                 api_response = asyncio.run(post_to_devto(
                     credential.api_key,
@@ -298,14 +298,14 @@ def publish_post_direct(
                     canonical_url=canonical_url
                 ))
                 
-                # Update success
+                
                 published_post_entry.platform_post_id = str(api_response.get("id"))
                 published_post_entry.platform_post_url = api_response.get("url")
                 published_post_entry.status = "success"
                 results[platform_name] = {"success": True, "data": api_response}
                 
             elif platform_name == "hashnode" and credential.api_key:
-                # Get publication ID
+                
                 hashnode_pub_id = request_data.hashnode_publication_id or credential.publication_id
                 if not hashnode_pub_id:
                     raise ValueError("Hashnode Publication ID required")
@@ -315,10 +315,10 @@ def publish_post_direct(
                     hashnode_pub_id,
                     db_post.title,
                     db_post.content_markdown,
-                    canonical_url=canonical_url  # This will be None for localhost, which is what we want
+                    canonical_url=canonical_url  
                 ))
                 
-                # Update success
+                
                 if api_response.get("post_id"):
                     published_post_entry.platform_post_id = str(api_response["post_id"])
                 if api_response.get("post_url"):
@@ -327,7 +327,7 @@ def publish_post_direct(
                 results[platform_name] = {"success": True, "data": api_response}
                 
         except Exception as e:
-            # Update failure
+            
             published_post_entry.status = "failed"
             published_post_entry.error_message = str(e)[:500]
             results[platform_name] = {"success": False, "error": str(e)}
@@ -340,4 +340,3 @@ def publish_post_direct(
         "note": "Direct publishing completed (synchronous)"
     }
 
-# Add PUT for update and DELETE for deletion

@@ -1,4 +1,4 @@
-# backend/models.py
+
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -23,11 +23,11 @@ class Post(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Fields for aggregated list (can be JSON or separate columns)
-    # For simplicity, let's assume you'll store a JSONB for flexible platform-specific metadata
-    # or add individual columns as needed.
-    # Example: cover_image_url = Column(String, nullable=True)
-    # Example: canonical_url = Column(String, nullable=True)
+    
+    
+    
+    
+    
 
     author = relationship("User", back_populates="posts")
     published_posts = relationship("PublishedPost", back_populates="original_post")
@@ -37,29 +37,29 @@ class PlatformCredential(Base):
     __tablename__ = "platform_credentials"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    platform_name = Column(String, nullable=False) # "hashnode", "dev.to", "medium"
-    access_token = Column(String, nullable=True) # For OAuth
-    api_key = Column(String, nullable=True) # For API Key based auth
+    platform_name = Column(String, nullable=False) 
+    access_token = Column(String, nullable=True) 
+    api_key = Column(String, nullable=True) 
     refresh_token = Column(String, nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
     
-    # Platform-specific data stored as JSON
-    platform_data = Column(JSON, nullable=True) # For storing platform-specific info like publication_id, user_id, etc.
     
-    # Convenience fields for commonly used platform-specific data
-    publication_id = Column(String, nullable=True) # For Hashnode publication ID
-    platform_user_id = Column(String, nullable=True) # For Medium user ID, etc.
+    platform_data = Column(JSON, nullable=True) 
+    
+    
+    publication_id = Column(String, nullable=True) 
+    platform_user_id = Column(String, nullable=True) 
 
     user = relationship("User", back_populates="platform_credentials")
 
-class PublishedPost(Base): # To track where each post was published
+class PublishedPost(Base): 
     __tablename__ = "published_posts"
     id = Column(Integer, primary_key=True, index=True)
     original_post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
     platform_name = Column(String, nullable=False)
-    platform_post_id = Column(String, nullable=True) # ID of the post on the external platform
+    platform_post_id = Column(String, nullable=True) 
     platform_post_url = Column(String, nullable=True)
-    status = Column(String, default="pending") # pending, success, failed
+    status = Column(String, default="pending") 
     error_message = Column(Text, nullable=True)
     published_at = Column(DateTime(timezone=True), server_default=func.now())
 

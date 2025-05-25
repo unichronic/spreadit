@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useAuth } from '../hooks/useAuth'; // Or from contexts/AuthContext
+import { useAuth } from '../hooks/useAuth'; 
 import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
@@ -10,7 +10,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout();
-    // router.push('/login'); // AuthContext logout already handles redirect
+    
   };
 
   return (
