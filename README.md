@@ -1,8 +1,7 @@
-# 🚀 CrossPost - Multi-Platform Content Publishing
+# 🚀 Spreadit - Multi-Platform Content Publishing
 
-**Write once, publish everywhere.** CrossPost is a full-stack application that helps content creators distribute their articles across multiple blogging platforms with platform-specific customizations.
+**Write once, publish everywhere.** Spreadit is a full-stack application that helps content creators distribute their articles across multiple blogging platforms with platform-specific customizations.
 
-![CrossPost Banner](https://via.placeholder.com/800x200/4F46E5/FFFFFF?text=CrossPost+-+Multi-Platform+Publishing)
 
 ## ✨ Features
 
