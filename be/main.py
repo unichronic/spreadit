@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 import models
+import os
 
 # Import routers
 from routers import auth, posts, connections, tasks
@@ -13,11 +14,18 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS Middleware
+# CORS Middleware - Updated for deployment
 origins = [
-    "http://localhost:3000",  # Next.js frontend
+    "http://localhost:3000",  # Next.js frontend (local)
     "http://127.0.0.1:3000",
+    "https://*.railway.app",  # Railway frontend
+    "https://*.vercel.app",   # If you deploy frontend to Vercel
 ]
+
+# Add environment-specific origins
+if os.getenv("FRONTEND_URL"):
+    origins.append(os.getenv("FRONTEND_URL"))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

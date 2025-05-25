@@ -59,6 +59,8 @@ class PlatformCredentialCreate(PlatformCredentialBase):
 class PlatformCredential(PlatformCredentialBase):
     id: int
     user_id: int
+    publication_id: Optional[str] = None
+    platform_user_id: Optional[str] = None
     class Config:
         orm_mode = True
 

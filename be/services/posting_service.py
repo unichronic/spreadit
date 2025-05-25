@@ -45,56 +45,154 @@ async def post_to_devto(api_key: str, title: str, markdown_content: str, canonic
 # --- Hashnode Posting ---
 async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdown_content: str, tags_data: list = None, cover_image_url: str = None, canonical_url: str = None):
     """
-    Post an article to Hashnode using their GraphQL API
+    Post an article to Hashnode - creates a draft and then publishes it
     
     Args:
         api_key: Hashnode Personal Access Token
-        publication_id: Hashnode publication ID (required)
+        publication_id: ID of the Hashnode publication
         title: Article title
         markdown_content: Article content in markdown format
-        tags_data: Optional list of tag objects with id/name/slug
+        tags_data: List of tag objects with name (will be converted to proper format)
         cover_image_url: Optional cover image URL
         canonical_url: Optional canonical URL for SEO
     
     Returns:
-        dict: Response from Hashnode API containing post details
+        dict: Response from Hashnode API
     """
-    # Hashnode uses GraphQL. You'll need the user's publication ID.
-    # The PAT (api_key) is sent as an Authorization: Bearer <PAT> header.
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    query = """
-        mutation PublishPost($input: PublishPostInput!) {
-            publishPost(input: $input) {
-                post {
+    
+    # Convert simple tag names to proper Hashnode tag format
+    formatted_tags = []
+    if tags_data:
+        for tag in tags_data:
+            if isinstance(tag, dict) and "name" in tag:
+                tag_name = tag["name"]
+                # Create slug from name (lowercase, replace spaces with hyphens)
+                tag_slug = tag_name.lower().replace(" ", "-").replace("_", "-")
+                formatted_tags.append({
+                    "slug": tag_slug,
+                    "name": tag_name
+                })
+            elif isinstance(tag, str):
+                tag_slug = tag.lower().replace(" ", "-").replace("_", "-")
+                formatted_tags.append({
+                    "slug": tag_slug,
+                    "name": tag
+                })
+    
+    # Step 1: Create a draft
+    create_draft_query = """
+        mutation CreateDraft($input: CreateDraftInput!) {
+            createDraft(input: $input) {
+                draft {
                     id
                     slug
-                    url
                     title
                 }
             }
         }
     """
-    variables_input = {
+    
+    post_input = {
         "title": title,
         "contentMarkdown": markdown_content,
-        "publicationId": publication_id,  # User needs to provide this or you fetch it
-        "tags": tags_data if tags_data else []  # e.g., [{ id: "tag_id_1", name: "Tag1"}] or [{slug:"tag1", name:"Tag1"}] - check API
+        "publicationId": publication_id
     }
+    
+    # Add tags if provided
+    if formatted_tags:
+        post_input["tags"] = formatted_tags
+    
     if cover_image_url:
-        variables_input["coverImageOptions"] = {"coverImageURL": cover_image_url}
+        post_input["coverImageOptions"] = {"coverImageURL": cover_image_url}
+    
     if canonical_url:
-        # Hashnode might handle canonical URLs via frontmatter in Markdown or a specific field
-        # For example, add to markdown: --- \ncanonicalUrl: <URL>\n---
-        # Adding canonical URL to frontmatter
-        markdown_with_canonical = f"---\ncanonicalUrl: {canonical_url}\n---\n\n{markdown_content}"
-        variables_input["contentMarkdown"] = markdown_with_canonical
-
-    payload = {"query": query, "variables": {"input": variables_input}}
+        post_input["originalArticleURL"] = canonical_url
+    
+    create_payload = {"query": create_draft_query, "variables": {"input": post_input}}
 
     async with httpx.AsyncClient() as client:
-        response = await client.post("https://api.hashnode.com/", json=payload, headers=headers)
-    response.raise_for_status()
-    return response.json()
+        # Create the draft
+        response = await client.post("https://gql.hashnode.com/", json=create_payload, headers=headers)
+    
+    # Check for HTTP errors
+    if response.status_code != 200:
+        print(f"❌ Hashnode Create Draft HTTP Error: {response.status_code}")
+        print(f"❌ Response Headers: {dict(response.headers)}")
+        print(f"❌ Response Body: {response.text}")
+        response.raise_for_status()
+    
+    create_data = response.json()
+    
+    if "errors" in create_data:
+        raise Exception(f"Hashnode Create Draft API error: {create_data['errors']}")
+    
+    # Extract draft ID
+    draft_data = create_data.get("data", {}).get("createDraft", {}).get("draft")
+    if not draft_data or not draft_data.get("id"):
+        raise Exception(f"Failed to create draft: {create_data}")
+    
+    draft_id = draft_data["id"]
+    print(f"✅ Draft created successfully with ID: {draft_id}")
+    
+    # Step 2: Publish the draft
+    publish_draft_query = """
+        mutation PublishDraft($input: PublishDraftInput!) {
+            publishDraft(input: $input) {
+                post {
+                    id
+                    slug
+                    title
+                    url
+                    publishedAt
+                }
+            }
+        }
+    """
+    
+    publish_input = {
+        "draftId": draft_id
+    }
+    
+    publish_payload = {"query": publish_draft_query, "variables": {"input": publish_input}}
+    
+    async with httpx.AsyncClient() as client:
+        # Publish the draft
+        response = await client.post("https://gql.hashnode.com/", json=publish_payload, headers=headers)
+    
+    # Check for HTTP errors
+    if response.status_code != 200:
+        print(f"❌ Hashnode Publish Draft HTTP Error: {response.status_code}")
+        print(f"❌ Response Headers: {dict(response.headers)}")
+        print(f"❌ Response Body: {response.text}")
+        response.raise_for_status()
+    
+    publish_data = response.json()
+    
+    if "errors" in publish_data:
+        raise Exception(f"Hashnode Publish Draft API error: {publish_data['errors']}")
+    
+    # Check if publishing was successful
+    post_data = publish_data.get("data", {}).get("publishDraft", {}).get("post")
+    if not post_data:
+        raise Exception(f"Failed to publish draft: {publish_data}")
+    
+    print(f"🎉 Post published successfully!")
+    print(f"   Post ID: {post_data.get('id')}")
+    print(f"   Post URL: {post_data.get('url')}")
+    print(f"   Published at: {post_data.get('publishedAt')}")
+    
+    # Return combined information
+    return {
+        "data": {
+            "createDraft": create_data["data"]["createDraft"],
+            "publishDraft": publish_data["data"]["publishDraft"]
+        },
+        "draft_id": draft_id,
+        "post_id": post_data.get("id"),
+        "post_url": post_data.get("url"),
+        "published_at": post_data.get("publishedAt")
+    }
 
 
 # --- Medium Posting (DUMMY IMPLEMENTATION) ---
@@ -160,6 +258,53 @@ async def get_medium_user_id(access_token: str):
     return "mock_medium_user_id_12345"
 
 
+# Helper to get Hashnode user's publications
+async def get_hashnode_user_publications(api_key: str):
+    """
+    Get user's Hashnode publications using their Personal Access Token
+    
+    Args:
+        api_key: Hashnode Personal Access Token
+    
+    Returns:
+        list: List of user's publications with id, title, and url
+    """
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    query = """
+        query GetUserPublications {
+            me {
+                publications(first: 10) {
+                    edges {
+                        node {
+                            id
+                            title
+                            displayTitle
+                            url
+                            isTeam
+                        }
+                    }
+                }
+            }
+        }
+    """
+    payload = {"query": query}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post("https://gql.hashnode.com/", json=payload, headers=headers)
+    response.raise_for_status()
+    
+    data = response.json()
+    if "errors" in data:
+        raise Exception(f"Hashnode API error: {data['errors']}")
+    
+    me_data = data.get("data", {}).get("me")
+    if not me_data:
+        raise Exception("Failed to fetch user data from Hashnode")
+    
+    publications = me_data.get("publications", {}).get("edges", [])
+    return [edge["node"] for edge in publications]
+
+
 # Helper to get Hashnode publication ID
 async def get_hashnode_publication_id(api_key: str, hostname: str):
     """
@@ -186,7 +331,7 @@ async def get_hashnode_publication_id(api_key: str, hostname: str):
     payload = {"query": query, "variables": {"host": hostname}}
 
     async with httpx.AsyncClient() as client:
-        response = await client.post("https://api.hashnode.com/", json=payload, headers=headers)
+        response = await client.post("https://gql.hashnode.com/", json=payload, headers=headers)
     response.raise_for_status()
     
     data = response.json()

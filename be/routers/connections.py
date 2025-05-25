@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from typing import List
 import httpx # For making external API calls (OAuth)
 import os
+import asyncio
+from services.posting_service import get_hashnode_publication_id, get_hashnode_user_publications
 
 import schemas, crud, models, security, database  # Fixed imports
 
@@ -70,10 +72,55 @@ async def save_api_key(
     if not cred_data.api_key:
         raise HTTPException(status_code=400, detail="API key is required.")
 
-    # You might want to verify the key here by making a simple API call to the platform
-    # e.g., fetch user profile to ensure the key is valid
+    # Special handling for Hashnode - automatically fetch publication ID
+    publication_id = None
+    if cred_data.platform_name == "hashnode":
+        try:
+            # Get user's publications to find their primary publication
+            user_publications = await get_hashnode_user_publications(cred_data.api_key)
+            if user_publications:
+                # Use the first (primary) publication
+                publication_id = user_publications[0]["id"]
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="No Hashnode publications found. Please create a publication on Hashnode first."
+                )
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Failed to verify Hashnode API key or fetch publication: {str(e)}"
+            )
 
-    return crud.create_or_update_platform_credential(db, cred=cred_data, user_id=current_user.id)
+    # Create or update the credential with publication_id for Hashnode
+    try:
+        credential = crud.get_platform_credential(db, user_id=current_user.id, platform_name=cred_data.platform_name)
+        
+        if credential:
+            # Update existing credential
+            credential.api_key = cred_data.api_key
+            if publication_id:
+                credential.publication_id = publication_id
+        else:
+            # Create new credential
+            credential = models.PlatformCredential(
+                user_id=current_user.id,
+                platform_name=cred_data.platform_name,
+                api_key=cred_data.api_key,
+                publication_id=publication_id
+            )
+            db.add(credential)
+        
+        db.commit()
+        db.refresh(credential)
+        
+        return credential
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to save credential: {str(e)}"
+        )
 
 @router.post("/{platform}/revoke")
 async def revoke_connection(
