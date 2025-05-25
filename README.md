@@ -26,50 +26,14 @@
 
 ### 🛡️ **Security & Authentication**
 - **JWT Authentication**: Secure user sessions
-- **Encrypted Credentials**: Platform API keys stored securely
 - **OAuth Integration**: Seamless platform connections
-- **CORS Protection**: Secure cross-origin requests
+
 
 ### ⚡ **Performance & Reliability**
 - **Background Tasks**: Celery with Redis for async processing
 - **Database Optimization**: PostgreSQL with SQLAlchemy ORM
 - **Error Handling**: Comprehensive error tracking and recovery
-- **Health Monitoring**: Built-in health checks and status endpoints
 
-## 🏗️ Architecture
-
-### **Frontend (Next.js 15)**
-```
-fe/
-├── src/
-│   ├── app/                 # App Router pages
-│   │   ├── dashboard/       # Protected dashboard routes
-│   │   ├── login/          # Authentication pages
-│   │   └── register/       
-│   ├── components/         # Reusable UI components
-│   ├── hooks/             # Custom React hooks
-│   └── lib/               # Utilities and API client
-├── public/                # Static assets
-└── package.json          # Dependencies and scripts
-```
-
-### **Backend (FastAPI + Python)**
-```
-be/
-├── routers/              # API route handlers
-│   ├── auth.py          # Authentication endpoints
-│   ├── posts.py         # Post management
-│   ├── connections.py   # Platform connections
-│   └── tasks.py         # Background task endpoints
-├── services/            # Business logic
-│   └── posting_service.py # Platform publishing logic
-├── models.py           # Database models
-├── schemas.py          # Pydantic schemas
-├── database.py         # Database configuration
-├── security.py         # JWT and auth utilities
-├── tasks.py           # Celery background tasks
-└── main.py            # FastAPI application
-```
 
 ### **Database Schema**
 - **Users**: User accounts and authentication
