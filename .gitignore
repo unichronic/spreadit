@@ -93,6 +93,8 @@ be/*.egg-info/
 be/.installed.cfg
 be/*.egg
 be/MANIFEST
+be/pycache/*
+
 
 # PyInstaller
 be/*.manifest
@@ -260,3 +262,5 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity 
+
+RAILWAY_ENV_SETUP.md
