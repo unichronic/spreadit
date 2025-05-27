@@ -1,15 +1,15 @@
-
+# backend/services/posting_service.py
 import httpx
 from sqlalchemy.orm import Session
 import sys
 import os
 
-
+# Add the parent directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import PlatformCredential
 
 
-
+# --- Dev.to Posting ---
 async def post_to_devto(api_key: str, title: str, markdown_content: str, canonical_url: str = None, tags: list = None):
     """
     Post an article to Dev.to using their API
@@ -29,7 +29,7 @@ async def post_to_devto(api_key: str, title: str, markdown_content: str, canonic
         "article": {
             "title": title,
             "body_markdown": markdown_content,
-            "published": True,  
+            "published": True,  # Or False for draft
             "tags": tags if tags else [],
         }
     }
@@ -38,11 +38,11 @@ async def post_to_devto(api_key: str, title: str, markdown_content: str, canonic
 
     async with httpx.AsyncClient() as client:
         response = await client.post("https://dev.to/api/articles", json=payload, headers=headers)
-    response.raise_for_status()  
+    response.raise_for_status()  # Will raise an exception for 4XX/5XX errors
     return response.json()
 
 
-
+# --- Hashnode Posting ---
 async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdown_content: str, tags_data: list = None, cover_image_url: str = None, canonical_url: str = None):
     """
     Post an article to Hashnode - creates a draft and then publishes it
@@ -61,13 +61,13 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     """
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     
-    
+    # Convert simple tag names to proper Hashnode tag format
     formatted_tags = []
     if tags_data:
         for tag in tags_data:
             if isinstance(tag, dict) and "name" in tag:
                 tag_name = tag["name"]
-                
+                # Create slug from name (lowercase, replace spaces with hyphens)
                 tag_slug = tag_name.lower().replace(" ", "-").replace("_", "-")
                 formatted_tags.append({
                     "slug": tag_slug,
@@ -80,7 +80,7 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
                     "name": tag
                 })
     
-    
+    # Step 1: Create a draft
     create_draft_query = """
         mutation CreateDraft($input: CreateDraftInput!) {
             createDraft(input: $input) {
@@ -99,7 +99,7 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
         "publicationId": publication_id
     }
     
-    
+    # Add tags if provided
     if formatted_tags:
         post_input["tags"] = formatted_tags
     
@@ -112,10 +112,10 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     create_payload = {"query": create_draft_query, "variables": {"input": post_input}}
 
     async with httpx.AsyncClient() as client:
-        
+        # Create the draft
         response = await client.post("https://gql.hashnode.com/", json=create_payload, headers=headers)
     
-    
+    # Check for HTTP errors
     if response.status_code != 200:
         print(f"❌ Hashnode Create Draft HTTP Error: {response.status_code}")
         print(f"❌ Response Headers: {dict(response.headers)}")
@@ -127,7 +127,7 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     if "errors" in create_data:
         raise Exception(f"Hashnode Create Draft API error: {create_data['errors']}")
     
-    
+    # Extract draft ID
     draft_data = create_data.get("data", {}).get("createDraft", {}).get("draft")
     if not draft_data or not draft_data.get("id"):
         raise Exception(f"Failed to create draft: {create_data}")
@@ -135,7 +135,7 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     draft_id = draft_data["id"]
     print(f"✅ Draft created successfully with ID: {draft_id}")
     
-    
+    # Step 2: Publish the draft
     publish_draft_query = """
         mutation PublishDraft($input: PublishDraftInput!) {
             publishDraft(input: $input) {
@@ -157,10 +157,10 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     publish_payload = {"query": publish_draft_query, "variables": {"input": publish_input}}
     
     async with httpx.AsyncClient() as client:
-        
+        # Publish the draft
         response = await client.post("https://gql.hashnode.com/", json=publish_payload, headers=headers)
     
-    
+    # Check for HTTP errors
     if response.status_code != 200:
         print(f"❌ Hashnode Publish Draft HTTP Error: {response.status_code}")
         print(f"❌ Response Headers: {dict(response.headers)}")
@@ -172,7 +172,7 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     if "errors" in publish_data:
         raise Exception(f"Hashnode Publish Draft API error: {publish_data['errors']}")
     
-    
+    # Check if publishing was successful
     post_data = publish_data.get("data", {}).get("publishDraft", {}).get("post")
     if not post_data:
         raise Exception(f"Failed to publish draft: {publish_data}")
@@ -182,7 +182,7 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     print(f"   Post URL: {post_data.get('url')}")
     print(f"   Published at: {post_data.get('publishedAt')}")
     
-    
+    # Return combined information
     return {
         "data": {
             "createDraft": create_data["data"]["createDraft"],
@@ -195,7 +195,7 @@ async def post_to_hashnode(api_key: str, publication_id: str, title: str, markdo
     }
 
 
-
+# --- Medium Posting (DUMMY IMPLEMENTATION) ---
 async def post_to_medium(access_token: str, user_id_on_medium: str, title: str, markdown_content: str, canonical_url: str = None, tags: list = None, publish_status: str = "public"):
     """
     DUMMY IMPLEMENTATION - Medium API has been deprecated
@@ -215,7 +215,7 @@ async def post_to_medium(access_token: str, user_id_on_medium: str, title: str, 
     Returns:
         dict: Mock response simulating successful Medium post
     """
-    
+    # Since Medium API is deprecated, return a mock successful response
     mock_response = {
         "data": {
             "id": f"mock_medium_id_{hash(title) % 10000}",
@@ -241,7 +241,7 @@ async def post_to_medium(access_token: str, user_id_on_medium: str, title: str, 
     return mock_response
 
 
-
+# Helper to get Medium user ID (DUMMY IMPLEMENTATION)
 async def get_medium_user_id(access_token: str):
     """
     DUMMY IMPLEMENTATION - Medium API has been deprecated
@@ -258,7 +258,7 @@ async def get_medium_user_id(access_token: str):
     return "mock_medium_user_id_12345"
 
 
-
+# Helper to get Hashnode user's publications
 async def get_hashnode_user_publications(api_key: str):
     """
     Get user's Hashnode publications using their Personal Access Token
@@ -305,7 +305,7 @@ async def get_hashnode_user_publications(api_key: str):
     return [edge["node"] for edge in publications]
 
 
-
+# Helper to get Hashnode publication ID
 async def get_hashnode_publication_id(api_key: str, hostname: str):
     """
     Get Hashnode publication ID by hostname
@@ -345,7 +345,7 @@ async def get_hashnode_publication_id(api_key: str, hostname: str):
     return publication["id"]
 
 
-
+# Main function to cross-post to all connected platforms
 async def cross_post_article(db: Session, user_id: int, title: str, markdown_content: str, canonical_url: str = None, tags: list = None):
     """
     Cross-post an article to all connected platforms for a user
@@ -363,7 +363,7 @@ async def cross_post_article(db: Session, user_id: int, title: str, markdown_con
     """
     results = {}
     
-    
+    # Get user's platform credentials
     credentials = db.query(PlatformCredential).filter(
         PlatformCredential.user_id == user_id
     ).all()
@@ -378,12 +378,12 @@ async def cross_post_article(db: Session, user_id: int, title: str, markdown_con
                     title=title,
                     markdown_content=markdown_content,
                     canonical_url=canonical_url,
-                    tags=tags[:4] if tags else None  
+                    tags=tags[:4] if tags else None  # Dev.to allows max 4 tags
                 )
                 results[platform] = {"success": True, "data": result}
                 
             elif platform == "hashnode" and credential.api_key:
-                
+                # Use the new publication_id field
                 publication_id = credential.publication_id
                 if not publication_id:
                     results[platform] = {"success": False, "error": "Publication ID not found"}
@@ -400,7 +400,7 @@ async def cross_post_article(db: Session, user_id: int, title: str, markdown_con
                 results[platform] = {"success": True, "data": result}
                 
             elif platform == "medium" and credential.access_token:
-                
+                # Dummy implementation for Medium
                 result = await post_to_medium(
                     access_token=credential.access_token,
                     user_id_on_medium=credential.platform_user_id,

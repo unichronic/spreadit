@@ -1,0 +1,1 @@
+# services module for blog posting functionality 

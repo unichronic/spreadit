@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../hooks/useAuth'; 
+import { useAuth } from '../../../hooks/useAuth'; // Or directly from contexts/AuthContext
 import { registerUser, loginUser } from '../../../lib/api';
 import Link from 'next/link';
 
@@ -25,10 +25,10 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       await registerUser(email, password);
-      
+      // Automatically log in the user after successful registration
       const tokenData = await loginUser(email, password);
-      authLogin(tokenData.access_token, email); 
-      router.push('/dashboard'); 
+      authLogin(tokenData.access_token, email); // Store token and email
+      router.push('/dashboard'); // Redirect to dashboard or home page
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {

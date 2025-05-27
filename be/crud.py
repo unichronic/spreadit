@@ -1,4 +1,4 @@
-
+# backend/crud.py
 from sqlalchemy.orm import Session
 import models, schemas, security
 
@@ -16,10 +16,10 @@ def create_user(db: Session, user: schemas.UserCreate):
 def get_posts_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Post).filter(models.Post.author_id == user_id).offset(skip).limit(limit).all()
 
-def get_post(db: Session, post_id: int, user_id: int): 
+def get_post(db: Session, post_id: int, user_id: int): # Ensure user owns the post
     return db.query(models.Post).filter(models.Post.id == post_id, models.Post.author_id == user_id).first()
 
-
+# ... other CRUD functions for posts, platform_credentials etc. ...
 def create_user_post(db: Session, post: schemas.PostCreate, user_id: int):
     db_post = models.Post(**post.model_dump(), author_id=user_id)
     db.add(db_post)
@@ -38,12 +38,12 @@ def update_post(db: Session, post_id: int, user_id: int, post_update: schemas.Po
 
 def create_or_update_platform_credential(db: Session, cred: schemas.PlatformCredentialCreate, user_id: int):
     db_cred = db.query(models.PlatformCredential).filter_by(user_id=user_id, platform_name=cred.platform_name).first()
-    if db_cred: 
+    if db_cred: # Update
         db_cred.access_token = cred.access_token
         db_cred.api_key = cred.api_key
-        
-    else: 
-        db_cred = models.PlatformCredential(**cred.model_dump(), user_id=user_id) 
+        # ... update other fields like refresh_token, expires_at
+    else: # Create
+        db_cred = models.PlatformCredential(**cred.model_dump(), user_id=user_id) # Use model_dump() for Pydantic v2
         db.add(db_cred)
     db.commit()
     db.refresh(db_cred)

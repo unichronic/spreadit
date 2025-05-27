@@ -1,4 +1,4 @@
-
+# backend/security.py
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 import models, schemas, database
 import os
 
-
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")  
+# Security Configuration
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")  # In production, use environment variable
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -53,6 +53,6 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return user
 
 def get_current_active_user(current_user: models.User = Depends(get_current_user)):
-    
-    
+    # if current_user.disabled: # If you add a disabled flag
+    #     raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
